@@ -1,0 +1,5 @@
+device: cuda
+seed: 42
+num_workers: 2
+batch_size: 48
+world_size: 2

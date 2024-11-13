@@ -1,0 +1,60 @@
+# training
+lr: 1e-4
+lr_backbone: 1e-5
+batch_size: 2
+weight_decay: 1e-4
+epochs: 300
+lr_drop: 200
+clip_max_norm: 0.1
+
+# Model parameters
+frozen_weights: null  # None으로 설정
+dilation: false
+position_embedding: sine
+
+# Transformer
+enc_layers: 6
+dec_layers: 6
+dim_feedforward: 2048
+hidden_dim: 256
+dropout: 0.1
+nheads: 8
+num_queries: 10
+pre_norm: false
+
+# Segmentation
+masks: false
+
+# Loss
+aux_loss: true  # `no_aux_loss` 대신 `aux_loss`로 변경
+
+# Matcher
+set_cost_class: 1
+set_cost_bbox: 5
+set_cost_giou: 2
+set_cost_pose: 5
+
+# Loss coefficients
+mask_loss_coef: 1
+dice_loss_coef: 1
+bbox_loss_coef: 5
+giou_loss_coef: 2
+pose_loss_coef: 5
+eos_coef: 0.1
+
+# dataset settings
+dataset_file: JAXA
+data_path: /home/username/data/coco
+coco_panoptic_path: /home/username/data/coco/panoptic
+remove_difficult: false
+output_dir: output
+
+device: cuda
+seed: 42
+resume: ''
+start_epoch: 0
+eval: false
+num_workers: 2
+
+world_size: 1
+dist_url: 'env://'

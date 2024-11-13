@@ -1,0 +1,9 @@
+DISTRIBUTED:
+  BACKEND: "nccl"
+
+MODEL:
+  NAME: "resnet50"
+  NUM_CLASSES: 1000
+TRAIN:
+  BATCH_SIZE: 32
+  LR: 0.001
