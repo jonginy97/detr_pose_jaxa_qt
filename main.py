@@ -74,15 +74,18 @@ def get_args_parser():
                         help="L1 box coefficient in the matching cost")
     parser.add_argument('--set_cost_giou', default=2, type=float,
                         help="giou box coefficient in the matching cost")
-    parser.add_argument('--set_cost_pose', default=1, type=float,
-                        help="L1 pose coefficient in the matching cost")
+    parser.add_argument('--set_cost_position', default=1, type=float,
+                        help="L1 position coefficient in the matching cost")
+    parser.add_argument('--set_cost_orientation', default=1, type=float,
+                        help="L1 orientation coefficient in the matching cost")
     
     # * Loss coefficients
     parser.add_argument('--mask_loss_coef', default=1, type=float)
     parser.add_argument('--dice_loss_coef', default=1, type=float)
     parser.add_argument('--bbox_loss_coef', default=5, type=float)
     parser.add_argument('--giou_loss_coef', default=2, type=float)
-    parser.add_argument('--pose_loss_coef', default=3, type=float)
+    parser.add_argument('--position_loss_coef', default=1, type=float)
+    parser.add_argument('--orientation_loss_coef', default=1, type=float)
     parser.add_argument('--eos_coef', default=0.1, type=float,
                         help="Relative classification weight of the no-object class")
 
@@ -268,17 +271,17 @@ if __name__ == '__main__':
     
     # override some settings
     args.dataset_file = 'JAXA'
-    args.data_path = r'F:\YOON\Datasets\JAXA_dataset\synthetic\new\random_30000\detr_dataset'
-    args.output_dir = 'output/'  +  datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    # args.output_dir = r'output\20241102-040426'
-    args.resume = r'F:\YOON\research\detr_pose_jaxa\output\20241105-154841\checkpoint.pth'
-    if args.resume:
-        args.output_dir = Path(args.resume).parent
+    args.data_path = r'F:\YOON\Datasets\JAXA_dataset\jaxa_100samples_720'
+    # args.output_dir = 'output/'  +  datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    # args.resume = r'F:\YOON\research\detr_pose_jaxa\output\20241105-154841\checkpoint.pth'
+    # if args.resume:
+    #     args.output_dir = Path(args.resume).parent
 
     args.epochs = 30
+    args.batch_size = 2
     
-    if args.output_dir:
-        Path(args.output_dir).resolve().mkdir(exist_ok=True)    
+    # if args.output_dir:
+    #     Path(args.output_dir).resolve().mkdir(exist_ok=True)    
     
     print(args)
     # save args to output dir txt file

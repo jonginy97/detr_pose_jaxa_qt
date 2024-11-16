@@ -50,7 +50,7 @@ def convert_JAXA_poly_to_mask(segmentations, height, width):
 class ConvertJAXAPolysToMask(object):
     def __init__(self, return_masks=False, normalization='max'):
         self.return_masks = return_masks
-        self.normalization = normalization # 'max' or 'z-score' for position and orientation
+        self.normalization = normalization  # 'max' or 'z-score' for position and orientation
 
     def __call__(self, image, target):
         w, h = image.size
@@ -63,7 +63,6 @@ class ConvertJAXAPolysToMask(object):
         anno = [obj for obj in anno if 'iscrowd' not in obj or obj['iscrowd'] == 0]
 
         boxes = [obj["bbox"] for obj in anno]
-        # guard against no boxes via resizing
         boxes = torch.as_tensor(boxes, dtype=torch.float32).reshape(-1, 4)
         boxes[:, 2:] += boxes[:, :2]
         boxes[:, 0::2].clamp_(min=0, max=w)
@@ -83,39 +82,31 @@ class ConvertJAXAPolysToMask(object):
             num_keypoints = keypoints.shape[0]
             if num_keypoints:
                 keypoints = keypoints.view(num_keypoints, -1, 3)
-                              
-        # Extract position and orientation directly and convert to tensor
+
+        # Extract Position and Orientation separately
         positions = [obj["pose"]["position"] for obj in anno if "pose" in obj]
         orientations = [obj["pose"]["orientation"] for obj in anno if "pose" in obj]
 
-        # Convert to tensors
         positions = torch.tensor(positions, dtype=torch.float32)
         orientations = torch.tensor(orientations, dtype=torch.float32)
-       
-        # Perform normalization only if positions and orientations are not empty
+
+        # Normalize Position and Orientation
         if positions.numel() > 0:
             if self.normalization == 'max':
-                # Max normalization
+                # Max normalization for Position
                 position_max_factors = torch.tensor([150.0, 100.0, 450.0], dtype=torch.float32)
                 positions /= position_max_factors
             elif self.normalization == 'z-score':
-                raise NotImplementedError("Z-score normalization is not yet implemented.\n \
-                                          Please define the necessary mean and std values.")
+                raise NotImplementedError("Z-score normalization is not yet implemented.")
 
-        if orientations.numel() > 0: # numel() returns the number of elements in the tensor
+        if orientations.numel() > 0:
             if self.normalization == 'max':
-                orientation_max_factors = torch.tensor([180.0, 180.0, 180.0], dtype=torch.float32)
-                orientations /= orientation_max_factors
+                # Normalize quaternions to unit quaternions
+                orientations = orientations / orientations.norm(dim=-1, keepdim=True)
             elif self.normalization == 'z-score':
-                raise NotImplementedError("Z-score normalization is not yet implemented.\n \
-                                          Please define the necessary mean and std values.")
+                raise NotImplementedError("Z-score normalization is not yet implemented.")
 
-        # 6D pose creation
-        if positions.numel() > 0 and orientations.numel() > 0:
-            pose_6d = torch.cat((positions, orientations), dim=1)
-        else:
-            pose_6d = torch.tensor([])
-
+        # Filter valid boxes and associated data
         keep = (boxes[:, 3] > boxes[:, 1]) & (boxes[:, 2] > boxes[:, 0])
         boxes = boxes[keep]
         classes = classes[keep]
@@ -123,19 +114,23 @@ class ConvertJAXAPolysToMask(object):
             masks = masks[keep]
         if keypoints is not None:
             keypoints = keypoints[keep]
-        pose_6d = pose_6d[keep]
+        positions = positions[keep]
+        orientations = orientations[keep]
 
-        target = {}
-        target["boxes"] = boxes
-        target["labels"] = classes
-        target["pose_6d"] = pose_6d
+        # Prepare target dictionary
+        target = {
+            "boxes": boxes,
+            "labels": classes,
+            "positions": positions,
+            "orientations": orientations,
+            "image_id": image_id,
+        }
+
         if self.return_masks:
             target["masks"] = masks
-        target["image_id"] = image_id
         if keypoints is not None:
             target["keypoints"] = keypoints
 
-        # for conversion to JAXA api
         area = torch.tensor([obj["area"] for obj in anno])
         iscrowd = torch.tensor([obj["iscrowd"] if "iscrowd" in obj else 0 for obj in anno])
         target["area"] = area[keep]
@@ -147,32 +142,7 @@ class ConvertJAXAPolysToMask(object):
         return image, target
 
 
-# def make_JAXA_transforms():
-
-#     normalize = T.Compose([
-#         T.ToTensor(),
-#         T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-#     ])
-
-#     scales = [480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800]
-
-
-#     return T.Compose([
-#         T.RandomHorizontalFlip(),
-#         T.RandomSelect(
-#             T.RandomResize(scales, max_size=1333),
-#             T.Compose([
-#                 T.RandomResize([400, 500, 600]),
-#                 T.RandomSizeCrop(384, 600),
-#                 T.RandomResize(scales, max_size=1333),
-#             ])
-#         ),
-#         normalize,
-#     ])
-
-
 def make_JAXA_transforms(color_transforms_enabled=False):
-
     normalize = T.Compose([
         T.ToTensor(),
         T.Normalize([0.3369, 0.3866, 0.4526], [0.1927, 0.2150, 0.2402])
@@ -186,7 +156,7 @@ def make_JAXA_transforms(color_transforms_enabled=False):
 
     transforms_list = []
     
-    # color_transforms_enabled가 True인 경우 색상 변환을 추가
+    # Apply color transforms if enabled
     if color_transforms_enabled:
         transforms_list.append(color_transforms)
 
@@ -197,12 +167,11 @@ def make_JAXA_transforms(color_transforms_enabled=False):
     return T.Compose(transforms_list)
 
 
-
 def build(args):
     root = Path(args.data_path)
     assert root.exists(), f'provided Jaxa path {root} does not exist'
     img_folder = root / "images"
-    ann_file = root / "annotations.json"
+    ann_file = root / "annotations_qt.json"
 
     dataset = JAXADetection(img_folder, ann_file, make_JAXA_transforms(), return_masks=args.masks)
 
